@@ -1,0 +1,158 @@
+---
+title: "pro_pm25"
+author: "dw2834"
+date: "11/28/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+```
+
+## 1128
+# Test
+
+```{r}
+my_data <- read.csv('PRSA_data.csv')
+k = data.frame(my_data$month)
+ggplot(k,aes(x=1:length(my_data$month),y = my_data$month))+geom_line(size=1.5)
+```
+# Plot of average pm2.5 of each month in 5 years
+```{r}
+#summary(my_data)
+# tapply(my_data$pm2.5, my_data$year, mean)
+my_data_nonan <- subset(my_data, pm2.5 > 0)
+mean(my_data_nonan$pm2.5)
+# tapply(my_data_nonan$pm2.5, my_data_nonan$year, mean)
+unique(my_data_nonan$year)
+mon_avg <- data.frame(year=c(NA),month=c(NA),pm2.5=c(NA))
+mon_avg <- mon_avg[-1,]
+for (y in unique(my_data_nonan$year)){
+  for (m in unique(my_data_nonan$month)){
+    subsett <- subset(my_data_nonan, year == y & month == m)
+    mon_avg[nrow(mon_avg)+1,] <- c(y, m, mean(subsett$pm2.5))
+  }
+}
+ggplot(mon_avg,aes(x=1:length(mon_avg$year),y = mon_avg$pm2.5))+geom_line(size=1)
+```
+
+## 1202
+# Try Fig 1(a)
+```{r}
+my_data_lowpm <- subset(my_data_nonan, pm2.5 <= 35)
+ggplot(data=my_data_lowpm, aes(x=factor(year),y=pm2.5))+geom_boxplot()
+my_data_lowpm[1,]
+lasthour_low <- data.frame(year=c(NA),lasthours=c(NA))
+lasthour_low <- lasthour_low[-1,]
+lasthour_pollute <- data.frame(year=c(NA),lasthours=c(NA))
+lasthour_pollute <- lasthour_pollute[-1,]
+lasthour_high <- data.frame(year=c(NA),lasthours=c(NA))
+lasthour_high <- lasthour_high[-1,]
+for (y in unique(my_data_nonan$year)){
+  print(y)
+  ct_low <- 0
+  ct_pollute <- 0
+  ct_high <- 0
+  subsett <- subset(my_data_nonan, year == y)
+  for (r in 3:nrow(subsett)){
+    if (mean(subsett[(r-2):r,'pm2.5']) <= 35) { ct_low = ct_low + 1 }
+    else{
+      if (ct_low != 0) { lasthour_low[nrow(lasthour_low)+1,] <- c(y, ct_low) }
+      ct_low <- 0
+    }
+    if (mean(subsett[(r-2):r,'pm2.5']) > 35) { ct_pollute = ct_pollute + 1 }
+    else{
+      if (ct_pollute != 0) { lasthour_pollute[nrow(lasthour_pollute)+1,] <- c(y, ct_pollute) }
+      ct_pollute <- 0
+    }
+    if (mean(subsett[(r-2):r,'pm2.5']) > 150) { ct_high = ct_high + 1 }
+    else{
+      if (ct_high != 0) { lasthour_high[nrow(lasthour_high)+1,] <- c(y, ct_high) }
+      ct_high <- 0
+    }
+  }
+}
+
+ggplot(lasthour_high, aes(x=factor(year),y=lasthours))+geom_boxplot()+scale_y_continuous(trans='log2')
+```
+
+```{r pressure, echo=FALSE}
+ggplot(lasthour_high, aes(x=factor(year),y=lasthours))+geom_boxplot()
+tapply(lasthour_high$lasthours, INDEX=lasthour_high$year, FUN=sum)
+```
+
+```{r}
+# Smooth
+my_data_smooth <- data.frame(year=c(NA),pm2.5=c(NA))
+my_data_smooth <- my_data_smooth[-1,]
+for (i in 2:(nrow(my_data_nonan)-1)){
+  my_data_smooth[nrow(my_data_smooth)+1,] <- c(my_data_nonan[i,'year'], mean(my_data_nonan[(i-1):(i+1),'pm2.5']))
+}
+
+```
+
+## 1203
+# Try Eq4.4
+```{r}
+library(bbemkr)
+set.seed(233)
+x = my_data_nonan$PRES
+y = my_data_nonan$pm2.5
+k <- NadarayaWatsonkernel(x, y, h = 2, gridpoint = seq(-1, 1, length.out = 29))
+print(k)
+print(sum(k$mh))
+```
+
+```{r}
+library(bbemkr)
+set.seed(233)
+x = data.frame(x1 = my_data_nonan$PRES)
+y = my_data_nonan$pm2.5
+k <- NadarayaWatsonkernel(x, y, h = 2, gridpoint = seq(900, 1200, length.out = 29))
+print(k)
+print(sum(k$mh))
+
+```
+
+```{r}
+# Cannot run maybe not r code
+
+library("smoother")
+#library("plot")
+
+x = 4*pi*(uniform(400,2)-0.5)
+m = sum(cos(x),2)
+e = uniform(400)-0.5
+x = x~(m+e)
+;
+mh = regestp(x,2)
+mh = setmask(mh, "surface","blue")
+m  = setmask(x[,1:2]~m,"black","cross","small")
+#plot(mh,m)
+#setgopt(plotdisplay,1,1,"title","ROTATE!")
+```
+
+```{r}
+x = matrix(c(my_data_nonan$DEWP,my_data_nonan$TEMP,my_data_nonan$PRES,my_data_nonan$Iws),length(my_data_nonan$DEWP),4)
+y = my_data_nonan$pm2.5
+g = matrix(c(seq(-1, 1, length.out = 3),seq(-1, 1, length.out = 3),seq(-1, 1, length.out = 3),seq(-1, 1, length.out = 3)),3,4)
+NadarayaWatsonkernel(x, y, h = 2, gridpoint = g)
+```
+
+```{r}
+x = matrix(c(my_data_nonan$DEWP,my_data_nonan$TEMP,my_data_nonan$PRES,my_data_nonan$Iws),length(my_data_nonan$DEWP),4)
+y = my_data_nonan$pm2.5
+# g = matrix(c(seq(-1, 1, length.out = 3),seq(-1, 1, length.out = 3),seq(-1, 1, length.out = 3),seq(-1, 1, length.out = 3)),3,4)
+g <- matrix(rnorm(12), ncol=4)
+NadarayaWatsonkernel(x, y, h = 2, gridpoint = g)
+```
+
+```{r}
+x = matrix(c(my_data_nonan$DEWP,my_data_nonan$TEMP,my_data_nonan$PRES,my_data_nonan$Iws),length(my_data_nonan$DEWP),4)
+y = my_data_nonan$pm2.5
+m = ksmooth(x, y, "normal", bandwidth=2)$x
+```
+
+
+
