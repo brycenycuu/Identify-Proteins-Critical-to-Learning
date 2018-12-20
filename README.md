@@ -11,4 +11,4 @@ Higuera C, Gardiner KJ, Cios KJ (2015) Self-Organizing Feature Maps Identify Pro
 Reproduced part of experiments in the paper, and tried different techniques but without biological interpretation.
 
 ### Authors
-Di Wu (dw2834@columbia.edu), Jiliang Ma and Qinyuan Wei
+Di Wu (dw2834@columbia.edu), Jiliang Ma and [Qinyuan Wei](https://github.com/davidwei001)
